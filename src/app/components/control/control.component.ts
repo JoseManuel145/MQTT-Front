@@ -1,15 +1,17 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
-import mqtt from 'mqtt';
+import { Component } from '@angular/core';
+import { ControlService } from '../../services/control.service';
+
 @Component({
   standalone: true,
-  selector: 'app-mqtt-control',
+  selector: 'app-control',
   template: `
     <div class="p-4 space-y-4">
       <h1 class="text-2xl font-bold">Control de Movimiento</h1>
-      <button (click)="sendMessage('controles/adelante')" class="btn">Adelante</button>
-      <button (click)="sendMessage('controles/atras')" class="btn">Atrás</button>
-      <button (click)="sendMessage('controles/girar/izq')" class="btn">Girar Izquierda</button>
-      <button (click)="sendMessage('controles/girar/der')" class="btn">Girar Derecha</button>
+      <button (click)="sendMessage('forward')" class="btn">Adelante</button>
+      <button (click)="sendMessage('backward')" class="btn">Atrás</button>
+      <button (click)="sendMessage('left')" class="btn">Girar Izquierda</button>
+      <button (click)="sendMessage('right')" class="btn">Girar Derecha</button>
+      <button (click)="sendMessage('stop')" class="btn stop-btn">Detener</button>
     </div>
   `,
   styles: [`
@@ -25,56 +27,21 @@ import mqtt from 'mqtt';
     .btn:hover {
       background-color: #3730a3;
     }
+    .stop-btn {
+      background-color: red;
+    }
+    .stop-btn:hover {
+      background-color: darkred;
+    }
   `]
 })
-export class ControlComponent implements OnInit, OnDestroy {
-  private client: mqtt.MqttClient | undefined;
-  private brokerUrl = 'ws://3.80.77.21:15675/ws'; // Cambiar por IP pública
-  private username = 'manuel';
-  private password = 'upchiapas23';
+export class ControlComponent {
+  constructor(private controlService: ControlService) {}
 
-  ngOnInit() {
-    this.connectToBroker();
-  }
-
-  private connectToBroker() {
-    this.client = mqtt.connect(this.brokerUrl, {
-      username: this.username,
-      password: this.password,
-      reconnectPeriod: 3000, // Reintento cada 1s en caso de desconexión
+  sendMessage(command: string) {
+    this.controlService.sendCommand(command).subscribe({
+      next: (response) => console.log('✅ Comando enviado:', response),
+      error: (error) => console.error('❌ Error al enviar comando:', error)
     });
-
-    this.client.on('connect', () => {
-      console.log('✅ Conectado a RabbitMQ MQTT');
-    });
-
-    this.client.on('error', (err) => {
-      console.error('❌ Error de conexión MQTT:', err);
-    });
-
-    this.client.on('close', () => {
-      console.warn('⚠️ Conexión MQTT cerrada');
-    });
-  }
-
-  sendMessage(topic: string) {
-    if (this.client && this.client.connected) {
-      this.client.publish(topic, '1', {}, (err) => {
-        if (err) {
-          console.error('❌ Error al publicar:', err);
-        } else {
-          console.log(`📨 Mensaje enviado a ${topic}`);
-        }
-      });
-    } else {
-      console.warn('⚠️ Cliente MQTT no conectado');
-    }
-  }
-
-  ngOnDestroy() {
-    if (this.client) {
-      this.client.end();
-      console.log('👋 Cliente MQTT desconectado');
-    }
   }
 }
